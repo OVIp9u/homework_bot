@@ -44,12 +44,10 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
-    if not PRACTICUM_TOKEN:
-        logger.critical('Отсутствует переменная окружения:"practicum_token"')
-    elif not TELEGRAM_TOKEN:
-        logger.critical('Отсутствует переменная окружения:"telegram_token"')
-    elif not TELEGRAM_CHAT_ID:
-        logger.critical('Отсутствует переменная окружения:"telegram_chat_id"')
+    tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
+    for token in tokens:
+        if not token:
+            return False
     else:
         return True
 
@@ -57,10 +55,11 @@ def check_tokens():
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
+        logging.debug('Попытка отправки сообщения')
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.debug('Сообщение отправлено')
-    except logging.error('Бот не смог отправить сообщение'):
-        raise requests.RequestException('Ошибка при отправке сообщения в чат.')
+    except telegram.TelegramError as error:
+        logger.error(f'Ошибка при отправке сообщения: {error}')
 
 
 def get_api_answer(timestamp):
@@ -85,13 +84,13 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверяет ответ API на соответствие документации."""
-    if type(response) != dict:
+    if not isinstance(response, dict):
         raise TypeError('Ответ не является словарем')
     if 'homeworks' not in response:
         logging.error('Ключ "homeworks" отсутствует в ответе')
         raise KeyError('Ключ "homeworks" отсутствует в ответе')
     homeworks = response['homeworks']
-    if type(homeworks) != list:
+    if not isinstance(homeworks, list):
         raise TypeError('Ответ по ключу "homework" не является списком')
     elif 'current_date' not in response:
         raise KeyError('Ключ "current_date" отсутствует в ответе')
@@ -118,13 +117,14 @@ def parse_status(homework):
         homework_status = homework['status']
         verdict = HOMEWORK_VERDICTS[homework_status]
         return f'Изменился статус проверки работы "{homework_name}". {verdict}'
-    except requests.exceptions.RequestException as error:
+    except ValueError as error:
         raise Exception(f'Ошибка в данных: {error}')
 
 
 def main():
     """Основная логика работы бота."""
     if not check_tokens():
+        logging.critical('Отсутствует обязательная переменная окружения.')
         sys.exit('Отсутствует обязательная переменная окружения.')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     response = get_api_answer(TIMESTAMP)
@@ -141,8 +141,7 @@ def main():
                 send_message(bot, new_message)
                 previous_message = new_message
         except Exception as error:
-            error_message = f'Сбой в работе программы: {error}'
-            send_message(bot, error_message)
+            logger.error(f'Сбой в работе программы: {error}')
 
 
 if __name__ == '__main__':
