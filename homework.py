@@ -44,8 +44,7 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
-    tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
-    return all(tokens)
+    return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
 def send_message(bot, message):
@@ -131,9 +130,9 @@ def main():
             if new_message != previous_message:
                 send_message(bot, new_message)
                 previous_message = new_message
-                time.sleep(RETRY_PERIOD)
         except Exception as error:
             logger.error(f'Сбой в работе программы: {error}')
+        finally:
             time.sleep(RETRY_PERIOD)
 
 
