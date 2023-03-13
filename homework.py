@@ -45,11 +45,7 @@ HOMEWORK_VERDICTS = {
 def check_tokens():
     """Проверяет доступность переменных окружения."""
     tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
-    for token in tokens:
-        if not token:
-            return False
-    else:
-        return True
+    return all(tokens)
 
 
 def send_message(bot, message):
@@ -112,26 +108,21 @@ def parse_status(homework):
         raise ValueError('В данных отсутствует ключ: status')
     elif homework['status'] not in HOMEWORK_VERDICTS:
         raise ValueError('Неправильный статус')
-    try:
+    else:
         homework_name = homework['homework_name']
         homework_status = homework['status']
         verdict = HOMEWORK_VERDICTS[homework_status]
         return f'Изменился статус проверки работы "{homework_name}". {verdict}'
-    except ValueError as error:
-        raise Exception(f'Ошибка в данных: {error}')
 
 
 def main():
     """Основная логика работы бота."""
     if not check_tokens():
-        logging.critical('Отсутствует обязательная переменная окружения.')
-        sys.exit('Отсутствует обязательная переменная окружения.')
+        error_message = 'Отсутствует обязательная переменная окружения.'
+        logging.critical(error_message)
+        sys.exit(error_message)
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    response = get_api_answer(TIMESTAMP)
-    homework = check_response(response)
-    previous_message = parse_status(homework)
-    send_message(bot, previous_message)
-    time.sleep(600)
+    previous_message = ''
     while True:
         try:
             response = get_api_answer(TIMESTAMP)
@@ -140,8 +131,10 @@ def main():
             if new_message != previous_message:
                 send_message(bot, new_message)
                 previous_message = new_message
+                time.sleep(RETRY_PERIOD)
         except Exception as error:
             logger.error(f'Сбой в работе программы: {error}')
+            time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
